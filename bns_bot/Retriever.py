@@ -20,6 +20,7 @@ Dependencies:
 """
 
 import os
+
 import chromadb
 from sentence_transformers import SentenceTransformer, CrossEncoder
 from groq import Groq
@@ -30,7 +31,7 @@ from groq import Groq
 CHROMA_PATH = "chroma_db"
 EMBED_MODEL  = "BAAI/bge-large-en-v1.5"
 RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")   # Set GROQ_API_KEY in your environment
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")   # set GROQ_API_KEY in your environment
 GROQ_MODEL   = "llama-3.3-70b-versatile"
 
 SYSTEM_PROMPT = (

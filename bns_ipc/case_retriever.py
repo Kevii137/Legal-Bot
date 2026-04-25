@@ -2,7 +2,7 @@
 import os
 
 # Paste HF token, then clear this cell's output after running
-os.environ["HF_TOKEN"] = os.environ.get("HF_TOKEN", "")
+os.environ.setdefault("HF_TOKEN", "")  # set HF_TOKEN in your environment
 
 # Verify
 tok = os.environ.get("HF_TOKEN", "")
@@ -23,7 +23,7 @@ import os
 from datasets import load_dataset
 
 # Re-load HF token (env vars wiped on kernel restart)
-os.environ["HF_TOKEN"] = os.environ.get("HF_TOKEN", "")  # ← set HF_TOKEN in your environment
+# HF_TOKEN already set in environment (see cell 1)
 
 # Load the dataset
 print("Loading opennyaiorg/InJudgements_dataset...")
@@ -49,7 +49,7 @@ for split_name, split_data in ds.items():
 import os
 
 # Re-confirm token (env vars wipe across kernel restarts)
-os.environ["HF_TOKEN"] = os.environ.get("HF_TOKEN", "")  # ← set HF_TOKEN in your environment
+# HF_TOKEN already set in environment
 
 # Approach 1: Explicit login via huggingface_hub (more reliable than env var)
 from huggingface_hub import login, whoami
@@ -122,7 +122,7 @@ dbutils.library.restartPython()
 import os
 
 # Re-set token after kernel restart
-os.environ["HF_TOKEN"] = os.environ.get("HF_TOKEN", "")  # ← set HF_TOKEN in your environment
+# HF_TOKEN already set in environment
 
 # Keep cache in /tmp for now — UC Volume needs a different approach we'll address later
 os.environ["HF_DATASETS_CACHE"] = "/tmp/.hf.data.cache"
@@ -260,7 +260,7 @@ import os
 from groq import Groq
 
 # Re-set Groq key (env wiped on the kernel restart earlier)
-os.environ["GROQ_API_KEY"] = os.environ.get("GROQ_API_KEY", "")  # ← set GROQ_API_KEY in your environment
+os.environ.setdefault("GROQ_API_KEY", "")  # set GROQ_API_KEY in your environment
 
 _groq_client = Groq()
 
@@ -407,12 +407,13 @@ import os
 from groq import Groq
 
 # Paste 4 Groq keys
-GROQ_KEYS = [
+# Load Groq keys from environment variables (GROQ_API_KEY, GROQ_API_KEY_1, GROQ_API_KEY_2, GROQ_API_KEY_3)
+GROQ_KEYS = [v for v in [
+    os.environ.get("GROQ_API_KEY", ""),
     os.environ.get("GROQ_API_KEY_1", ""),
     os.environ.get("GROQ_API_KEY_2", ""),
     os.environ.get("GROQ_API_KEY_3", ""),
-    os.environ.get("GROQ_API_KEY_4", ""),
-]
+] if v]
 
 # Verify each key works with a tiny ping
 working_clients = []
@@ -870,6 +871,18 @@ print(f"Total tokens estimated: {sum(get_8b_distribution().values()):,}")
 
 # COMMAND ----------
 
+import pandas as pd
+
+CATALOG = "workspace"
+SCHEMA = "default"
+CASES_TABLE = f"{CATALOG}.{SCHEMA}.indian_criminal_cases"
+
+df_cases_criminal = spark.table(CASES_TABLE).toPandas()
+df_cases_criminal["text_len"] = df_cases_criminal["text"].str.len()
+print(f"✓ Loaded {len(df_cases_criminal):,} criminal cases from Delta")
+
+# COMMAND ----------
+
 import os
 import json
 import time
@@ -1007,3 +1020,37 @@ if errors:
     print(f"\n  First 5 errors:")
     for e in errors[:5]:
         print(f"    {e['case_id']}: {e['error']}")
+
+# COMMAND ----------
+
+GRANT SELECT ON TABLE workspace.default.ipc_bns_mapping TO `your-email@domain.com`;
+GRANT SELECT ON TABLE workspace.default.ipc_bns_corpus TO `your-email@domain.com`;
+
+# COMMAND ----------
+
+df_summaries = spark.table("workspace.default.indian_criminal_case_summaries_light").toPandas()
+print(f"Loaded {len(df_summaries)} summaries")
+print(df_summaries.columns.tolist())
+df_summaries.head(2)
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC GRANT SELECT ON TABLE workspace.default.ipc_bns_corpus TO `sivasubramanians2006@gmail.com`;
+
+# COMMAND ----------
+
+from case_retriever import CaseRetriever
+
+cr = CaseRetriever(df_summaries=df_summaries, groq_client=_groq_client)
+
+# Test with a lawyer query (rerank=False to save tokens)
+results = cr.find_similar_cases(
+    "client accused of cheating in online transaction",
+    k=5,
+    rerank_with_llm=False,
+)
+for r in results:
+    print(f"[{r['score']:.3f}] {r['title'][:70]}")
+    print(f"        {r['case_summary'][:150]}...")
+    print()

@@ -119,30 +119,27 @@ Scenario: "my neighbor is threatening me with a knife"
 {"concepts": ["criminal intimidation", "assault with a deadly weapon", "threat to cause hurt"]}
 """
 
-SCENARIO_REASONER_PROMPT = """You are a legal assistant helping a citizen understand their situation based on Indian Criminal Law (IPC and BNS).
+SCENARIO_REASONER_PROMPT = """You are a legal assistant helping a citizen understand what happened to them and what they can do about it.
 
-Your task:
-1. Analyze the user's real-life scenario.
-2. Use ONLY the provided "Candidate sections" (retrieved chunks) to explain which laws apply.
-3. Provide a direct answer to the user's situation.
-
-STRICT CONSTRAINTS:
-- DO NOT give a history lesson on why IPC changed to BNS.
-- DO NOT list "What Stayed" or "What Changed" as separate academic categories.
-- DO NOT use filler phrases like "In the old code..." or "The new Sanhita says...".
-- Focus 100% on the USER'S situation. Explain the law ONLY in the context of their facts.
+The user described a real situation. Your job:
+1. Tell them clearly what crimes were committed against them.
+2. Cite the current applicable law (BNS section + number).
+3. Only mention IPC if it is still relevant (e.g. for an ongoing case filed before 2024).
+4. Never explain how IPC became BNS. Never compare old vs new law.
 
 Respond with ONLY valid JSON:
 {
-  "applicable_ipc_sections": [
-    {"section": "<num>", "heading": "<text>", "application_to_scenario": "<How this specific law applies to the user's facts>"}
-  ],
-  "applicable_bns_sections": [
-    {"section": "<num>", "heading": "<text>", "application_to_scenario": "<How this specific law applies to the user's facts>"}
+  "what_happened_legally": "<One sentence: what crime(s) this situation constitutes>",
+  "applicable_sections": [
+    {
+      "code": "BNS" | "IPC",
+      "section": "<num>",
+      "heading": "<text>",
+      "relevance": "<One sentence: why this applies to the user's specific facts>"
+    }
   ],
   "severity": "low | medium | high | capital",
-  "situation_analysis": "<A 2-3 sentence direct answer to the user about their situation based on the law.>",
-  "action_items": ["<Item 1>", "<Item 2>"],
+  "what_you_should_do": ["<Step 1>", "<Step 2>", "<Step 3>"],
   "disclaimer": "Informational only, not legal advice."
 }
 """
@@ -486,8 +483,8 @@ Generate the structured explanation now."""
         Returns a dict with 'extracted_concepts', 'retrieved_candidates',
         and 'reasoning' (the LLM output with applicable sections, advice, etc.).
 
-        For the FIR maker: pass the resulting `applicable_ipc_sections` and
-        `applicable_bns_sections` (inside 'reasoning') into your FIR prompt.
+        For the FIR maker: pass the resulting `applicable_sections`
+        (inside 'reasoning') into your FIR prompt.
         """
         concepts = self.extract_concepts(scenario)
         if not concepts:
@@ -505,6 +502,7 @@ Generate the structured explanation now."""
                 all_candidates.append({
                     "source": h["source_code"],
                     "section": h["section"],
+                    "text": h.get("text", "")[:500],
                     "heading": h["heading"],
                     "matched_concept": concept,
                     "score": h["score"],
@@ -513,15 +511,11 @@ Generate the structured explanation now."""
         all_candidates.sort(key=lambda x: x["score"], reverse=True)
         top = all_candidates[:20]
 
-        ipc_lines = [f"  IPC {c['section']} — {c['heading']}"
-                     for c in top if c["source"] == "IPC"]
-        bns_lines = [f"  BNS {c['section']} — {c['heading']}"
-                     for c in top if c["source"] == "BNS"]
-
-        candidates_block = (
-            "IPC candidates:\n" + "\n".join(ipc_lines)
-            + "\n\nBNS candidates:\n" + "\n".join(bns_lines)
-        )
+        candidate_lines = [
+            f"  {c['source']} {c['section']} — {c['heading']}: {c['text']}"
+            for c in top
+        ]
+        candidates_block = "Relevant legal sections:\n" + "\n".join(candidate_lines)
 
         user_msg = f"""Scenario: {scenario}
 

@@ -2,4 +2,13 @@ sentence-transformers
 chromadb
 numpy
 groq
-databricks-vectorsearch
+reportlab
+fastapi
+uvicorn
+groq
+pandas
+pyarrow            # required for parquet reading
+faiss-cpu          # for case retriever
+sentence-transformers  # for embeddings
+requests           # for Sarvam
+python-multipart

@@ -1,0 +1,10 @@
+# Ignore the specific file causing the error
+data_ingestion_script/setup_catalog_schema_volume
+
+# Ignore all notebooks (since an App usually only needs .py files)
+*.ipynb
+*.pyc
+__pycache__/
+
+# Ignore the data folder again just to be safe
+raw_data/

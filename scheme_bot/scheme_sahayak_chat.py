@@ -365,7 +365,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # API key check
-    # api_key = os.environ.get("GROQ_API_KEY", "")
     api_key = os.environ.get("GROQ_API_KEY", "")
     if not api_key or not api_key.startswith("gsk_"):
         print("❌ GROQ_API_KEY environment variable not set or invalid.")

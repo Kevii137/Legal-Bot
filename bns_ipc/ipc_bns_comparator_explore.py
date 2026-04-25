@@ -327,7 +327,7 @@ dbutils.library.restartPython()
 import os
 
 # Paste your Groq key here — then clear this cell's output after running
-os.environ["GROQ_API_KEY"] = os.environ.get("GROQ_API_KEY", "")
+os.environ.setdefault("GROQ_API_KEY", "")  # set GROQ_API_KEY in your environment
 
 # Verify it's set (without printing the key itself)
 key = os.environ.get("GROQ_API_KEY", "")
@@ -351,7 +351,7 @@ import requests
 from io import StringIO
 
 # ---- Re-set the Groq key ----
-os.environ["GROQ_API_KEY"] = os.environ.get("GROQ_API_KEY", "")  # ← set GROQ_API_KEY in your environment
+# GROQ_API_KEY already set in environment
 
 # ---- Re-load mapping from Delta (already saved earlier) ----
 CATALOG = "workspace"
@@ -775,7 +775,7 @@ import pandas as pd
 from groq import Groq
 
 # ---- Re-set Groq key ----
-os.environ["GROQ_API_KEY"] = os.environ.get("GROQ_API_KEY", "")  # ← set GROQ_API_KEY in your environment
+# GROQ_API_KEY already set in environment
 
 # ---- Table config ----
 CATALOG = "workspace"
@@ -1714,7 +1714,7 @@ print(comp.handle_query("someone hacked me")["mode"])  # C_scenario
 # COMMAND ----------
 
 import os, sys
-os.environ["SARVAM_API_KEY"] = os.environ.get("SARVAM_API_KEY", "")   # set SARVAM_API_KEY in your environment
+os.environ["SARVAM_API_KEY"] = "sk_ay2lvnsu_2akm7JIIYCW8gkP7pahO2qEe"   # paste, clear output
 sys.path.insert(0, "/Workspace/Users/<your-email>/")  # wherever language.py lives
 
 import language as lg
@@ -1726,3 +1726,208 @@ print(lg.from_english("what is your name", "hi"))
 # Test TTS by length only — don't need to play the audio in notebook
 audio = lg.english_to_speech("Theft is punishable under BNS Section 303.", "hi")
 print(f"TTS audio: {len(audio):,} bytes WAV")
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
+# In a Databricks notebook cell (not the app):
+import os
+
+# Pick a path inside the App's working directory.
+# Apps deployed via `databricks apps deploy` typically have a `data/` folder.
+EXPORT_DIR = "/Workspace/Users/da24b007@smail.iitm.ac.in/Legal-Bot/data"
+os.makedirs(EXPORT_DIR, exist_ok=True)
+
+spark.table("workspace.default.ipc_bns_mapping").toPandas().to_parquet(
+    f"{EXPORT_DIR}/ipc_bns_mapping.parquet"
+)
+spark.table("workspace.default.ipc_bns_corpus").toPandas().to_parquet(
+    f"{EXPORT_DIR}/ipc_bns_corpus.parquet"
+)
+spark.table("workspace.default.indian_criminal_case_summaries_light").toPandas().to_parquet(
+    f"{EXPORT_DIR}/case_summaries.parquet"
+)
+
+# Verify
+import os
+for f in os.listdir(EXPORT_DIR):
+    size_mb = os.path.getsize(f"{EXPORT_DIR}/{f}") / 1e6
+    print(f"  {f}: {size_mb:.1f} MB")
+
+# COMMAND ----------
+
+EXPORT_DIR = "dbfs:/FileStore/legal_bot_data"
+
+# COMMAND ----------
+
+EXPORT_DIR = "/Volumes/workspace/default/legal_bot_data"
+
+# COMMAND ----------
+
+spark.table("workspace.default.indian_criminal_case_summaries_light") \
+    .write.mode("overwrite") \
+    .parquet(f"{EXPORT_DIR}/indian_criminal_case_summaries_light")
+
+print("Done")
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC GRANT READ VOLUME ON VOLUME workspace.default.legal_bot_data TO `sivasubramanians2006@gmail.com`;
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC GRANT WRITE VOLUME ON VOLUME workspace.default.legal_bot_data TO `sivasubramanians2006@gmail.com`;
+
+# COMMAND ----------
+
+# In a Databricks notebook
+import os
+EXPORT_DIR = "/Volumes/workspace/default/legal_bot_data"
+os.makedirs(EXPORT_DIR, exist_ok=True)
+
+# pandas .to_parquet writes ONE file at the exact path
+spark.table("workspace.default.ipc_bns_mapping").toPandas() \
+    .to_parquet(f"{EXPORT_DIR}/ipc_bns_mapping.parquet", index=False)
+
+spark.table("workspace.default.ipc_bns_corpus").toPandas() \
+    .to_parquet(f"{EXPORT_DIR}/ipc_bns_corpus.parquet", index=False)
+
+spark.table("workspace.default.indian_criminal_case_summaries_light").toPandas() \
+    .to_parquet(f"{EXPORT_DIR}/case_summaries.parquet", index=False)
+
+# Verify they're real single files, not directories
+import os
+for f in ["ipc_bns_mapping.parquet", "ipc_bns_corpus.parquet", "case_summaries.parquet"]:
+    p = f"{EXPORT_DIR}/{f}"
+    if os.path.isfile(p):
+        print(f"✓ {f}: {os.path.getsize(p)/1e6:.1f} MB (file)")
+    elif os.path.isdir(p):
+        print(f"✗ {f}: DIRECTORY (wrong — this is the bug)")
+    else:
+        print(f"✗ {f}: not found")
+
+# COMMAND ----------
+
+import os
+EXPORT_DIR = "/Volumes/workspace/default/legal_bot_data"
+
+if os.path.exists(EXPORT_DIR):
+    for entry in sorted(os.listdir(EXPORT_DIR)):
+        full = f"{EXPORT_DIR}/{entry}"
+        if os.path.isfile(full):
+            print(f"FILE  {entry}  {os.path.getsize(full)/1e6:.1f} MB")
+        elif os.path.isdir(full):
+            inner = sorted(os.listdir(full))[:5]
+            print(f"DIR   {entry}/  contains: {inner}")
+else:
+    print(f"EXPORT_DIR doesn't exist: {EXPORT_DIR}")
+
+# COMMAND ----------
+
+import shutil, os
+EXPORT_DIR = "/Volumes/workspace/default/legal_bot_data"
+
+for d in ["ipc_bns_mapping", "ipc_bns_corpus", "indian_criminal_case_summaries_light"]:
+    p = f"{EXPORT_DIR}/{d}"
+    if os.path.isdir(p):
+        shutil.rmtree(p)
+        print(f"✓ deleted dir {p}")
+
+print("\nRemaining:")
+print(os.listdir(EXPORT_DIR))
+
+# COMMAND ----------
+
+import os
+EXPORT_DIR = "/Volumes/workspace/default/legal_bot_data"
+
+df1 = spark.table("workspace.default.ipc_bns_mapping").toPandas()
+df1.to_parquet(f"{EXPORT_DIR}/ipc_bns_mapping.parquet", index=False)
+print(f"✓ mapping: {len(df1)} rows")
+
+df2 = spark.table("workspace.default.ipc_bns_corpus").toPandas()
+df2.to_parquet(f"{EXPORT_DIR}/ipc_bns_corpus.parquet", index=False)
+print(f"✓ corpus: {len(df2)} rows")
+
+df3 = spark.table("workspace.default.indian_criminal_case_summaries_light").toPandas()
+df3.to_parquet(f"{EXPORT_DIR}/case_summaries.parquet", index=False)
+print(f"✓ summaries: {len(df3)} rows")
+
+# Verify
+print("\nFinal listing:")
+for entry in sorted(os.listdir(EXPORT_DIR)):
+    full = f"{EXPORT_DIR}/{entry}"
+    if os.path.isfile(full):
+        print(f"  FILE  {entry}  {os.path.getsize(full)/1e6:.1f} MB")
+    else:
+        print(f"  DIR   {entry}")
+
+# COMMAND ----------
+
+import os
+EXPORT_DIR = "/Volumes/workspace/default/legal_bot_data"
+for entry in sorted(os.listdir(EXPORT_DIR)):
+    full = f"{EXPORT_DIR}/{entry}"
+    if os.path.isfile(full):
+        print(f"FILE  {entry}  {os.path.getsize(full)/1e6:.2f} MB")
+    elif os.path.isdir(full):
+        print(f"DIR   {entry}")
+    else:
+        print(f"???   {entry}")
+
+# COMMAND ----------
+
+import os
+EXPORT_DIR = "/Volumes/workspace/default/legal_bot_data"
+
+# Run each in its own block, swallow display errors
+for table_name, out_name in [
+    ("ipc_bns_mapping", "ipc_bns_mapping.parquet"),
+    ("ipc_bns_corpus", "ipc_bns_corpus.parquet"),
+    ("indian_criminal_case_summaries_light", "case_summaries.parquet"),
+]:
+    try:
+        df = spark.table(f"workspace.default.{table_name}").toPandas()
+        out_path = f"{EXPORT_DIR}/{out_name}"
+        df.to_parquet(out_path, index=False)
+        n = len(df)
+        size_mb = os.path.getsize(out_path) / 1e6
+        print(f"✓ {out_name}: {n} rows, {size_mb:.2f} MB")
+        del df  # release memory
+    except Exception as e:
+        print(f"✗ {out_name}: {type(e).__name__}: {str(e)[:200]}")
+
+# Force the cell to return None so the display layer doesn't try to JSON-encode anything
+None
+
+# COMMAND ----------
+
+import os
+import pandas as pd
+EXPORT_DIR = "/Volumes/workspace/default/legal_bot_data"
+
+for table_name, out_name in [
+    ("ipc_bns_mapping", "ipc_bns_mapping.parquet"),
+    ("ipc_bns_corpus", "ipc_bns_corpus.parquet"),
+    ("indian_criminal_case_summaries_light", "case_summaries.parquet"),
+]:
+    try:
+        spark_df = spark.table(f"workspace.default.{table_name}")
+        # Convert to pandas, then make a CLEAN copy with no Spark metadata attached
+        raw = spark_df.toPandas()
+        # Rebuild the dataframe from scratch — this strips any Spark-attached metadata
+        clean = pd.DataFrame({col: raw[col].tolist() for col in raw.columns})
+        out_path = f"{EXPORT_DIR}/{out_name}"
+        clean.to_parquet(out_path, index=False, engine="pyarrow")
+        size_mb = os.path.getsize(out_path) / 1e6
+        print(f"✓ {out_name}: {len(clean)} rows, {size_mb:.2f} MB")
+        del spark_df, raw, clean
+    except Exception as e:
+        print(f"✗ {out_name}: {type(e).__name__}: {str(e)[:300]}")
+
+None

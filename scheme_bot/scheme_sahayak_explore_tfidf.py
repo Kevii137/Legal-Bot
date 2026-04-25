@@ -27,10 +27,10 @@
 
 # COMMAND ----------
 
-import numpy as np
-from pyspark.sql.functions import col, udf
+from pyspark.sql.functions import udf, col
 from pyspark.sql.types import ArrayType, FloatType
 from sentence_transformers import SentenceTransformer
+import numpy as np
 
 # Reuse the exact model you'll always use
 MODEL_NAME = "BAAI/bge-small-en-v1.5"
@@ -71,111 +71,16 @@ print("✅ Embedding column added and table overwritten.")
 
 # COMMAND ----------
 
-import os
-import sys
+import os, sys
 
-os.environ["GROQ_API_KEY"] = os.environ.get("GROQ_API_KEY", "")   # ← Set GROQ_API_KEY in your environment before running
+os.environ.setdefault("GROQ_API_KEY", "")   # set GROQ_API_KEY in your environment
 
 # Make scheme_sahayak.py importable — adjust path to wherever you uploaded it
-sys.path.insert(0, "/Workspace/Users/<your-email>/Legal-Bot/scheme_sahayak")
-from scheme_sahayak_v3 import SchemeIngester, SchemeSahayak
+sys.path.insert(0, "/Workspace/Users/da24b007@smail.iitm.ac.in/Legal-Bot/scheme_bot/")
+from scheme_sahayak import SchemeIngester, SchemeSahayak, ROUTER_SYSTEM_PROMPT, ATTRIBUTE_EXTRACTOR_PROMPT, ELIGIBILITY_RESPONDER_PROMPT
 
 key = os.environ.get("GROQ_API_KEY", "")
 print(f"✓ Key loaded: {key[:8]}... (len={len(key)})" if key.startswith("gsk_") else "✗ Key missing")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ---
-# MAGIC ## Cell 3 — Explore raw CSV schema
-# MAGIC ⚠️ Skip this cell after the first time — it's for understanding the data.
-
-# COMMAND ----------
-
-# Read raw CSV directly from volume to inspect schema
-VOLUME_PATH = "/Volumes/workspace/default/raw_files/gov_myscheme.csv"
-
-df_raw = (
-    spark.read
-    .option("header", "true")
-    .option("inferSchema", "false")
-    .option("multiLine", "true")
-    .option("escape", '"')
-    .csv(VOLUME_PATH)
-    .toPandas()
-)
-
-print(f"Shape  : {df_raw.shape}")
-print(f"Columns: {list(df_raw.columns)}")
-print("\nNull counts:")
-print(df_raw.isnull().sum())
-
-print("\nschemeCategory value counts (top 20):")
-print(df_raw["schemeCategory"].value_counts().head(20))
-
-print("\nlevel value counts:")
-print(df_raw["level"].value_counts())
-
-print("\nSample row:")
-display(df_raw.head(3))
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ---
-# MAGIC ## Cell 4 — Ingestion ⚠️ Run ONCE only
-# MAGIC Reads the CSV, cleans it, writes two Delta tables:
-# MAGIC - `workspace.default.gov_schemes`
-# MAGIC - `workspace.default.gov_schemes_categories`
-
-# COMMAND ----------
-
-# ⚠️ SKIP THIS CELL IF TABLES ALREADY EXIST
-
-ingester = SchemeIngester(spark_session=spark)
-ingester.run_pipeline()
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ---
-# MAGIC ## Cell 5 — Verify Delta tables
-
-# COMMAND ----------
-
-SCHEMES_TABLE    = "workspace.default.gov_schemes"
-CATEGORIES_TABLE = "workspace.default.gov_schemes_categories"
-
-print(f"gov_schemes row count         : {spark.table(SCHEMES_TABLE).count()}")
-print(f"gov_schemes_categories count  : {spark.table(CATEGORIES_TABLE).count()}")
-
-print("\n--- Schema: gov_schemes ---")
-spark.table(SCHEMES_TABLE).printSchema()
-
-print("\n--- Category breakdown ---")
-display(
-    spark.sql(f"""
-        SELECT category, COUNT(*) AS scheme_count
-        FROM {SCHEMES_TABLE}
-        GROUP BY category
-        ORDER BY scheme_count DESC
-    """)
-)
-
-print("\n--- Central vs State ---")
-display(
-    spark.sql(f"""
-        SELECT level, COUNT(*) AS count
-        FROM {SCHEMES_TABLE}
-        GROUP BY level
-        ORDER BY count DESC
-    """)
-)
-
-print("\n--- Sample schemes ---")
-display(spark.table(SCHEMES_TABLE)
-        .select("scheme_name", "category", "level", "eligibility")
-        .limit(5))
 
 # COMMAND ----------
 
@@ -188,11 +93,12 @@ display(spark.table(SCHEMES_TABLE)
 
 # COMMAND ----------
 
-import json
-
-from groq import Groq
+import re, json
+import numpy as np
+import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from groq import Groq
 
 # ── Load tables ────────────────────────────────────────────
 SCHEMES_TABLE    = "workspace.default.gov_schemes"
@@ -458,21 +364,4 @@ while True:
     assistant_reply = extract_assistant_text_for_history(result)  # you need to implement this
     history.append({"role": "assistant", "content": assistant_reply})
 
-    print("-" * 65)
-
-# COMMAND ----------
-
-print("🌾 Scheme Sahayak — Ready! Describe your situation.")
-print("Type 'quit' to exit.\n")
-
-while True:
-    user_input = input("You: ").strip()
-    if not user_input:
-        continue
-    if user_input.lower() in {"quit", "exit"}:
-        print("Goodbye!")
-        break
-
-    result = bot.handle_query(user_input)
-    SchemeSahayak.pretty_print(result)
     print("-" * 65)

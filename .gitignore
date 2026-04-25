@@ -1,0 +1,18 @@
+# Exclude the oversized CSVs
+raw_data/
+*.csv
+
+# Exclude the broken notebooks/scripts
+data_ingestion_script/
+*.ipynb
+
+# Standard Python cleanup
+__pycache__/
+*.pyc
+
+# Environment / secrets — never commit these
+.env
+.env.local
+*.env
+
+*:Zone.Identifier

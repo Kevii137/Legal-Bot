@@ -1,0 +1,431 @@
+{
+  "_meta": {
+    "description": "Scheme Sahayak benchmark questions – ground-truth labels for retrieval, routing, and eligibility evaluation",
+    "version": "1.0",
+    "total_questions": 30,
+    "modes": {
+      "A_name_lookup": 10,
+      "B_category_search": 10,
+      "C_eligibility_check": 10
+    },
+    "languages": [
+      "en",
+      "hi"
+    ]
+  },
+  "questions": [
+    {
+      "id": "NAME_001",
+      "mode": "A_name_lookup",
+      "language": "en",
+      "question": "Tell me about the Garuda Scheme for Funeral Expense",
+      "expected_scheme_names": [
+        "Garuda Scheme for Funeral Expense"
+      ],
+      "expected_scheme_ids": [
+        "gsfe"
+      ]
+    },
+    {
+      "id": "NAME_002",
+      "mode": "A_name_lookup",
+      "language": "en",
+      "question": "What is the Consortia and Tender Marketing Scheme?",
+      "expected_scheme_names": [
+        "Consortia & Tender Marketing Scheme"
+      ],
+      "expected_scheme_ids": [
+        "ctms"
+      ]
+    },
+    {
+      "id": "NAME_003",
+      "mode": "A_name_lookup",
+      "language": "en",
+      "question": "Explain the Indira Mahila Shakti Udyam Protsahan Yojana",
+      "expected_scheme_names": [
+        "Indira Mahila Shakti Udyam Protsahan Yojana"
+      ],
+      "expected_scheme_ids": [
+        "imspesy"
+      ]
+    },
+    {
+      "id": "NAME_004",
+      "mode": "A_name_lookup",
+      "language": "en",
+      "question": "Tell me about PM Kisan Samman Nidhi",
+      "expected_scheme_names": [
+        "Pradhan Mantri Kisan Samman Nidhi"
+      ],
+      "expected_scheme_ids": [
+        "pm-kisan"
+      ]
+    },
+    {
+      "id": "NAME_005",
+      "mode": "A_name_lookup",
+      "language": "en",
+      "question": "What benefits does Ayushman Bharat PM-JAY provide?",
+      "expected_scheme_names": [
+        "Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana"
+      ],
+      "expected_scheme_ids": [
+        "ab-pmjay"
+      ]
+    },
+    {
+      "id": "NAME_006",
+      "mode": "A_name_lookup",
+      "language": "en",
+      "question": "How do I apply for PM SVANidhi scheme?",
+      "expected_scheme_names": [
+        "PM Street Vendor's AtmaNirbhar Nidhi (PM SVANidhi)"
+      ],
+      "expected_scheme_ids": [
+        "pm-svanidhi"
+      ]
+    },
+    {
+      "id": "NAME_007",
+      "mode": "A_name_lookup",
+      "language": "en",
+      "question": "What is the Atal Pension Yojana and who should join it?",
+      "expected_scheme_names": [
+        "Atal Pension Yojana"
+      ],
+      "expected_scheme_ids": [
+        "apy"
+      ]
+    },
+    {
+      "id": "NAME_008",
+      "mode": "A_name_lookup",
+      "language": "en",
+      "question": "Tell me about Nirman Shramik Jeevan va Bhavishya Suraksha Yojana",
+      "expected_scheme_names": [
+        "Nirman Shramik Jeevan va Bhavishya Suraksha Yojana"
+      ],
+      "expected_scheme_ids": [
+        "nsjbsy"
+      ]
+    },
+    {
+      "id": "NAME_010",
+      "mode": "A_name_lookup",
+      "language": "en",
+      "question": "What is the Jal Jeevan Mission scheme?",
+      "expected_scheme_names": [
+        "Jal Jeevan Mission"
+      ],
+      "expected_scheme_ids": [
+        "jjm"
+      ]
+    },
+    {
+      "id": "CAT_001",
+      "mode": "B_category_search",
+      "language": "en",
+      "question": "What schemes help farmers transport their crops to market?",
+      "expected_categories": [
+        "Agriculture,Rural & Environment"
+      ],
+      "expected_scheme_names": [
+        "Kisan Parivahan Yojana",
+        "Meghalaya Agriculture Response Vehicle Scheme"
+      ],
+      "expected_scheme_ids": [
+        "kpyg",
+        "marvs"
+      ]
+    },
+    {
+      "id": "CAT_002",
+      "mode": "B_category_search",
+      "language": "en",
+      "question": "Are there any scholarships available for SC ST students?",
+      "expected_categories": [
+        "Education & Learning",
+        "Social welfare & Empowerment"
+      ],
+      "expected_scheme_names": [
+        "Award of Post-Matric Scholarship to Scheduled Caste Students",
+        "Award of Pre-matric Scholarship to Scheduled Caste Students Studying from VI to X Standard"
+      ],
+      "expected_scheme_ids": [
+        "apmsscs",
+        "ap-msscssvixsgsgrpsutp"
+      ]
+    },
+    {
+      "id": "CAT_003",
+      "mode": "B_category_search",
+      "language": "en",
+      "question": "What government schemes support women entrepreneurs to start a business?",
+      "expected_categories": [
+        "Women and Child",
+        "Business & Entrepreneurship"
+      ],
+      "expected_scheme_names": [
+        "Indira Mahila Shakti Udyam Protsahan Yojana"
+      ],
+      "expected_scheme_ids": [
+        "imspesy"
+      ]
+    },
+    {
+      "id": "CAT_004",
+      "mode": "B_category_search",
+      "language": "en",
+      "question": "I want to know about pension schemes for senior citizens",
+      "expected_categories": [
+        "Social welfare & Empowerment",
+        "Banking,Financial Services and Insurance"
+      ],
+      "expected_scheme_names": [
+        "Atal Pension Yojana",
+        "Chief Minister Pension Scheme"
+      ],
+      "expected_scheme_ids": [
+        "apy",
+        "cmpsmp"
+      ]
+    },
+    {
+      "id": "CAT_005",
+      "mode": "B_category_search",
+      "language": "en",
+      "question": "Are there any schemes to help small businesses and MSMEs get loans?",
+      "expected_categories": [
+        "Business & Entrepreneurship",
+        "Banking,Financial Services and Insurance"
+      ],
+      "expected_scheme_names": [
+        "PM Street Vendor's AtmaNirbhar Nidhi (PM SVANidhi)",
+        "Consortia & Tender Marketing Scheme"
+      ],
+      "expected_scheme_ids": [
+        "pm-svanidhi",
+        "ctms"
+      ]
+    },
+    {
+      "id": "CAT_006",
+      "mode": "B_category_search",
+      "language": "en",
+      "question": "What health schemes are available for construction workers?",
+      "expected_categories": [
+        "Health & Wellness",
+        "Social welfare & Empowerment"
+      ],
+      "expected_scheme_names": [
+        "Nirman Shramik Jeevan va Bhavishya Suraksha Yojana"
+      ],
+      "expected_scheme_ids": [
+        "nsjbsy"
+      ]
+    },
+    {
+      "id": "CAT_007",
+      "mode": "B_category_search",
+      "language": "en",
+      "question": "What scholarships exist for students with disabilities in technical education?",
+      "expected_categories": [
+        "Education & Learning"
+      ],
+      "expected_scheme_names": [
+        "AICTE – Saksham Scholarship Scheme For Specially-Abled Student (Degree)",
+        "AICTE – Saksham Scholarship Scheme For Specially-Abled Student (Diploma)"
+      ],
+      "expected_scheme_ids": [
+        "sak-deg",
+        "sak-dip"
+      ]
+    },
+    {
+      "id": "CAT_008",
+      "mode": "B_category_search",
+      "language": "en",
+      "question": "Show me schemes related to safe drinking water and sanitation",
+      "expected_categories": [
+        "Utility & Sanitation"
+      ],
+      "expected_scheme_names": [
+        "Jal Jeevan Mission"
+      ],
+      "expected_scheme_ids": [
+        "jjm"
+      ]
+    },
+    {
+      "id": "CAT_010",
+      "mode": "B_category_search",
+      "language": "en",
+      "question": "Which schemes provide financial assistance to the families of fishermen who go missing at sea?",
+      "expected_categories": [
+        "Agriculture,Rural & Environment",
+        "Social welfare & Empowerment"
+      ],
+      "expected_scheme_names": [
+        "\"Immediate Relief Assistance\" under \"Welfare and Relief for Fishermen During Lean Seasons and Natural Calamities Scheme\""
+      ],
+      "expected_scheme_ids": [
+        "ira-wrflsncs"
+      ]
+    },
+    {
+      "id": "ELIG_001",
+      "mode": "C_eligibility_check",
+      "language": "en",
+      "question": "I am a 55-year-old destitute widow living in Kerala with an annual income below ₹1 lakh. I do not receive any pension. What can I get?",
+      "expected_eligible_schemes": [
+        {
+          "scheme_name": "Abhayakiranam Scheme-Financial Assistance To Destitute Widows",
+          "scheme_id": "as-fadw",
+          "verdict": "Likely eligible"
+        }
+      ],
+      "expected_not_eligible_schemes": [
+        {
+          "scheme_name": "Chief Minister Pension Scheme",
+          "scheme_id": "cmpsmp",
+          "verdict": "Not eligible",
+          "reason": "Chief Minister Pension Scheme is for Chhattisgarh residents, not Kerala"
+        }
+      ]
+    },
+    {
+      "id": "ELIG_002",
+      "mode": "C_eligibility_check",
+      "language": "en",
+      "question": "I am a farmer in Gujarat and I want to buy a medium-sized goods vehicle of 1000 kg capacity. Is there any scheme for me?",
+      "expected_eligible_schemes": [
+        {
+          "scheme_name": "Kisan Parivahan Yojana",
+          "scheme_id": "kpyg",
+          "verdict": "Likely eligible"
+        }
+      ],
+      "expected_not_eligible_schemes": []
+    },
+    {
+      "id": "ELIG_003",
+      "mode": "C_eligibility_check",
+      "language": "en",
+      "question": "I am a 25-year-old salaried person and want to invest for my retirement. I have a savings bank account. What pension scheme suits me?",
+      "expected_eligible_schemes": [
+        {
+          "scheme_name": "Atal Pension Yojana",
+          "scheme_id": "apy",
+          "verdict": "Likely eligible"
+        }
+      ],
+      "expected_not_eligible_schemes": []
+    },
+    {
+      "id": "ELIG_004",
+      "mode": "C_eligibility_check",
+      "language": "en",
+      "question": "I am a street vendor selling vegetables in Mumbai. I lost my working capital due to COVID and need a small loan to restart. What scheme can help me?",
+      "expected_eligible_schemes": [
+        {
+          "scheme_name": "PM Street Vendor's AtmaNirbhar Nidhi (PM SVANidhi)",
+          "scheme_id": "pm-svanidhi",
+          "verdict": "Likely eligible"
+        }
+      ],
+      "expected_not_eligible_schemes": []
+    },
+    {
+      "id": "ELIG_005",
+      "mode": "C_eligibility_check",
+      "language": "en",
+      "question": "I am a small farmer with 2 acres of land in Rajasthan. I need income support from the government.",
+      "expected_eligible_schemes": [
+        {
+          "scheme_name": "Pradhan Mantri Kisan Samman Nidhi",
+          "scheme_id": "pm-kisan",
+          "verdict": "Likely eligible"
+        }
+      ],
+      "expected_not_eligible_schemes": []
+    },
+    {
+      "id": "ELIG_006",
+      "mode": "C_eligibility_check",
+      "language": "en",
+      "question": "I am a 62-year-old widow from a BPL family in Chhattisgarh. I have never received any pension. Am I eligible for any scheme?",
+      "expected_eligible_schemes": [
+        {
+          "scheme_name": "Chief Minister Pension Scheme",
+          "scheme_id": "cmpsmp",
+          "verdict": "Likely eligible"
+        }
+      ],
+      "expected_not_eligible_schemes": [
+        {
+          "scheme_name": "Abhayakiranam Scheme-Financial Assistance To Destitute Widows",
+          "scheme_id": "as-fadw",
+          "verdict": "Not eligible",
+          "reason": "Abhayakiranam is for Kerala residents only"
+        }
+      ]
+    },
+    {
+      "id": "ELIG_007",
+      "mode": "C_eligibility_check",
+      "language": "en",
+      "question": "I am a Scheduled Caste student studying in Class 8 in Puducherry. My family has lived here for 6 years. Can I get a scholarship?",
+      "expected_eligible_schemes": [
+        {
+          "scheme_name": "Award of Pre-matric Scholarship to Scheduled Caste Students Studying from VI to X Standard",
+          "scheme_id": "ap-msscssvixsgsgrpsutp",
+          "verdict": "Likely eligible"
+        }
+      ],
+      "expected_not_eligible_schemes": [
+        {
+          "scheme_name": "Award of Post-Matric Scholarship to Scheduled Caste Students",
+          "scheme_id": "apmsscs",
+          "verdict": "Not eligible",
+          "reason": "Post-matric scholarship requires studying beyond Class 10"
+        }
+      ]
+    },
+    {
+      "id": "ELIG_008",
+      "mode": "C_eligibility_check",
+      "language": "en",
+      "question": "I am a diploma student with 60% physical disability enrolled in an AICTE-approved college. Is there any scholarship for me?",
+      "expected_eligible_schemes": [
+        {
+          "scheme_name": "AICTE – Saksham Scholarship Scheme For Specially-Abled Student (Diploma)",
+          "scheme_id": "sak-dip",
+          "verdict": "Likely eligible"
+        }
+      ],
+      "expected_not_eligible_schemes": [
+        {
+          "scheme_name": "AICTE – Saksham Scholarship Scheme For Specially-Abled Student (Degree)",
+          "scheme_id": "sak-deg",
+          "verdict": "Not eligible",
+          "reason": "Degree-level Saksham scholarship is for degree (B.Tech/B.E.) programs, not diploma"
+        }
+      ]
+    },
+    {
+      "id": "ELIG_010",
+      "mode": "C_eligibility_check",
+      "language": "en",
+      "question": "I belong to a BPL family and need health insurance coverage for a major surgery costing over ₹5 lakh. Which scheme covers me?",
+      "expected_eligible_schemes": [
+        {
+          "scheme_name": "Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana",
+          "scheme_id": "ab-pmjay",
+          "verdict": "Likely eligible"
+        }
+      ],
+      "expected_not_eligible_schemes": []
+    }
+  ]
+}
