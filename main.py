@@ -421,10 +421,9 @@ def _init_scheme_bot() -> bool:
         return SCHEME_BOT_AVAILABLE
     try:
         sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scheme_bot"))
-        from scheme_sahayak_chat import SchemeChatBot, init_spark, load_data, build_search_engine
+        from scheme_sahayak_chat import SchemeChatBot, load_data, build_search_engine
 
-        spark = init_spark()
-        df_schemes, df_categories = load_data(spark)
+        df_schemes, df_categories = load_data()
         vectorizer, tfidf_matrix = build_search_engine(df_schemes)
 
         _scheme_bot = SchemeChatBot(
@@ -432,7 +431,7 @@ def _init_scheme_bot() -> bool:
             api_key=GROQ_API_KEY,
         )
         SCHEME_BOT_AVAILABLE = True
-        print("✅ SchemeChatBot initialised successfully.")
+        print("✅ SchemeChatBot initialised successfully locally.")
     except Exception as e:
         print(f"⚠️  SchemeChatBot init failed ({type(e).__name__}: {e}). Using LLM fallback.")
         SCHEME_BOT_AVAILABLE = False

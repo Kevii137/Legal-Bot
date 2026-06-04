@@ -27,8 +27,8 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Spark is needed to read Delta tables (unless you exported them to CSV/Parquet)
-from pyspark.sql import SparkSession
+# Local parquet loading and FAISS search
+
 
 # ───────────────────────────────────────────────────────────────────────────
 #  Configuration
@@ -103,44 +103,67 @@ Return ONLY valid JSON (no markdown):
 # ───────────────────────────────────────────────────────────────────────────
 #  Load data and build TF‑IDF engine
 # ───────────────────────────────────────────────────────────────────────────
-def init_spark():
-    """Create or get a Spark session (works in Databricks and locally)."""
-    if "spark" in globals():
-        return spark
-    return SparkSession.builder.getOrCreate()
+_global_df_schemes = None
 
-def load_data(spark):
-    """Read the two Delta tables into Pandas DataFrames."""
-    print(f"📖 Loading {SCHEMES_TABLE}…")
-    df_schemes = spark.table(SCHEMES_TABLE).toPandas()
+def init_spark():
+    """Bypassed. Returns None since Spark is not used locally."""
+    return None
+
+def load_data(spark=None):
+    """Read local Parquet files into Pandas DataFrames."""
+    global _global_df_schemes
+    import os
+    data_dir = "data"
+    schemes_path = os.path.join(data_dir, "gov_schemes.parquet")
+    categories_path = os.path.join(data_dir, "gov_schemes_categories.parquet")
+
+    print(f"📖 Loading {schemes_path}…")
+    df_schemes = pd.read_parquet(schemes_path)
     # Keep only rows with a meaningful summary
     df_schemes = df_schemes[df_schemes["embed_text"].str.len() >= 50].reset_index(drop=True)
 
-    print(f"📖 Loading {CATEGORIES_TABLE}…")
-    df_categories = spark.table(CATEGORIES_TABLE).toPandas()
+    print(f"📖 Loading {categories_path}…")
+    df_categories = pd.read_parquet(categories_path)
     print(f"✅ {len(df_schemes)} schemes, {len(df_categories)} categories loaded.\n")
+    _global_df_schemes = df_schemes
     return df_schemes, df_categories
 
 def build_search_engine(df_schemes):
-    """Create TF‑IDF matrix from embed_text for fast retrieval."""
-    print("🔧 Building TF‑IDF index on embed_text...")
-    vectorizer = TfidfVectorizer(stop_words="english", max_features=5000)
-    tfidf_matrix = vectorizer.fit_transform(df_schemes["embed_text"].tolist())
-    print(f"   Matrix shape: {tfidf_matrix.shape}")
-    return vectorizer, tfidf_matrix
+    """Create FAISS index from embed_text for fast retrieval."""
+    print("🔧 Building FAISS index on embed_text...")
+    from sentence_transformers import SentenceTransformer
+    import faiss
+    
+    embedder = SentenceTransformer("BAAI/bge-small-en-v1.5")
+    print(f"⏳ Embedding {len(df_schemes)} schemes…")
+    scheme_texts = df_schemes["embed_text"].tolist()
+    scheme_embs  = embedder.encode(
+        scheme_texts,
+        batch_size=64,
+        show_progress_bar=False,
+        normalize_embeddings=True,
+        convert_to_numpy=True,
+    ).astype(np.float32)
+    dim = scheme_embs.shape[1]
+    index = faiss.IndexFlatIP(dim)
+    index.add(scheme_embs)
+    print(f"   FAISS index ready. Dimension: {dim}")
+    return embedder, index
 
 def tfidf_search(query, vectorizer, tfidf_matrix, k=15):
-    """Return top-k schemes ranked by cosine similarity to the query."""
-    query_vec = vectorizer.transform([query])
-    scores = cosine_similarity(query_vec, tfidf_matrix).flatten()
-    # Efficient top‑k without full sort
-    top_idx = np.argpartition(scores, -k)[-k:]
-    top_idx = top_idx[np.argsort(scores[top_idx])[::-1]]
+    """Return top-k schemes ranked by cosine similarity to the query using FAISS."""
+    global _global_df_schemes
+    dfs = _global_df_schemes if _global_df_schemes is not None else df_schemes
+    q_emb = vectorizer.encode(
+        [query.strip()], normalize_embeddings=True, convert_to_numpy=True
+    ).astype(np.float32)
+    scores, indices = tfidf_matrix.search(q_emb, k)
     results = []
-    for idx in top_idx:
-        row = df_schemes.iloc[idx].to_dict()
-        row["score"] = float(scores[idx])
-        results.append(row)
+    for score, idx in zip(scores[0], indices[0]):
+        if idx >= 0:
+            row = dfs.iloc[int(idx)].to_dict()
+            row["score"] = float(score)
+            results.append(row)
     return results
 
 # ───────────────────────────────────────────────────────────────────────────
@@ -206,25 +229,10 @@ class SchemeChatBot:
         if not matched_cats:
             matched_cats = self.df_categories["category_name"].head(2).tolist()
 
-        # Filter schemes by matched categories
-        filtered = self.df_schemes[self.df_schemes["category"].isin(matched_cats)]
-        # If too few, use all schemes
-        if len(filtered) < 3:
-            filtered = self.df_schemes
-
-        # Search within filtered IDs
-        filtered_indices = filtered.index.tolist()
-        sub_matrix = self.tfidf_matrix[filtered_indices]
-        query_vec = self.vectorizer.transform([query])
-        scores = cosine_similarity(query_vec, sub_matrix).flatten()
-        top_k = min(5, len(filtered_indices))
-        top_local = np.argpartition(scores, -top_k)[-top_k:]
-        top_local = top_local[np.argsort(scores[top_local])[::-1]]
-        schemes = []
-        for i in top_local:
-            row = self.df_schemes.iloc[filtered_indices[i]].to_dict()
-            row["score"] = float(scores[i])
-            schemes.append(row)
+        # FAISS search on all schemes
+        all_hits = tfidf_search(query, self.vectorizer, self.tfidf_matrix, k=30)
+        cat_hits = [h for h in all_hits if h.get("category") in matched_cats]
+        schemes = cat_hits[:5] if len(cat_hits) >= 3 else all_hits[:5]
 
         return {
             "mode": "B_category_search",

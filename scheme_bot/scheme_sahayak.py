@@ -17,21 +17,22 @@ Actual CSV columns (from dataset):
   application, documents, level, schemeCategory
 
 Usage:
-    # ---- INGESTION (run ONCE to build Delta tables) ----
+    # ---- INGESTION (run ONCE to build Parquet files) ----
     ingester = SchemeIngester()
     ingester.run_pipeline()
 
-    # ---- EVERY SESSION (load from Delta + build FAISS) ----
+    # ---- EVERY SESSION (load from Parquet + build FAISS) ----
     import os
     os.environ["GROQ_API_KEY"] = "gsk_..."
 
-    bot = SchemeSahayak.from_delta()
+    bot = SchemeSahayak.from_parquet()
     result = bot.handle_query("I am a poor farmer, what schemes can I get?")
     SchemeSahayak.pretty_print(result)
 """
 
 from __future__ import annotations
 
+import os
 import json
 import re
 from dataclasses import dataclass
@@ -39,6 +40,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+
 
 # ============================================================================
 # Configuration
@@ -205,33 +207,24 @@ def _infer_category(name: str, details: str, csv_category: str) -> str:
 
 class SchemeIngester:
     """
-    Reads gov_myscheme.csv from a Unity Catalog Volume, cleans it, and writes
-    two persistent Delta tables:
-      • gov_schemes           — one row per scheme with embed_text
-      • gov_schemes_categories — one row per category with member scheme IDs
+    Reads gov_myscheme.csv, cleans it, and writes
+    two persistent Parquet files:
+      • gov_schemes.parquet           — one row per scheme with embed_text
+      • gov_schemes_categories.parquet — one row per category with member scheme IDs
 
-    Run ONCE. Every subsequent session just calls SchemeSahayak.from_delta().
+    Run ONCE. Every subsequent session just calls SchemeSahayak.from_parquet().
     """
 
-    def __init__(self, spark_session: Any | None = None) -> None:
-        if spark_session:
-            self.spark = spark_session
-        else:
-            from pyspark.sql import SparkSession
-            self.spark = SparkSession.builder.getOrCreate()
+    def __init__(self, data_dir: str = "data") -> None:
+        self.data_dir = data_dir
+        self.csv_path = os.path.join(data_dir, "gov_myscheme.csv")
+        self.schemes_path = os.path.join(data_dir, "gov_schemes.parquet")
+        self.categories_path = os.path.join(data_dir, "gov_schemes_categories.parquet")
 
     # ------------------------------------------------------------------
     def load_raw(self) -> pd.DataFrame:
-        print(f"📦 Reading: {VOLUME_PATH}")
-        df = (
-            self.spark.read
-            .option("header", "true")
-            .option("inferSchema", "false")   # keep everything as string
-            .option("multiLine", "true")
-            .option("escape", '"')
-            .csv(VOLUME_PATH)
-            .toPandas()
-        )
+        print(f"📦 Reading: {self.csv_path}")
+        df = pd.read_csv(self.csv_path, dtype=str)
         df.columns = [c.strip() for c in df.columns]
         print(f"📄 Raw shape : {df.shape}")
         print(f"   Columns   : {list(df.columns)}")
@@ -272,17 +265,12 @@ class SchemeIngester:
         return schemes
 
     # ------------------------------------------------------------------
-    def _to_delta(self, rows: list[dict], table: str) -> None:
-        from pyspark.sql.types import StringType, StructField, StructType
-        schema = StructType([StructField(c, StringType(), True) for c in rows[0]])
-        (
-            self.spark.createDataFrame(rows, schema=schema)
-            .write.format("delta")
-            .mode("overwrite")
-            .option("overwriteSchema", "true")
-            .saveAsTable(table)
-        )
-        print(f"💾 {len(rows)} rows → {table}")
+    def _to_parquet(self, rows: list[dict], path: str) -> None:
+        df = pd.DataFrame(rows)
+        # Ensure parent directory exists
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        df.to_parquet(path, index=False)
+        print(f"💾 {len(rows)} rows → {path}")
 
     # ------------------------------------------------------------------
     def run_pipeline(self) -> None:
@@ -297,7 +285,7 @@ class SchemeIngester:
                                 "official_link", "embed_text"]}
             for s in schemes
         ]
-        self._to_delta(scheme_rows, SCHEMES_TABLE)
+        self._to_parquet(scheme_rows, self.schemes_path)
 
         # --- categories table ---
         groups: dict[str, list[str]] = {}
@@ -313,13 +301,13 @@ class SchemeIngester:
             }
             for cat, ids in groups.items()
         ]
-        self._to_delta(cat_rows, CATEGORIES_TABLE)
+        self._to_parquet(cat_rows, self.categories_path)
         for r in cat_rows:
             print(f"   📂 {r['category_name']} — {r['scheme_count']} schemes")
 
         print("\n🎉 Ingestion complete.")
-        print(f"   {SCHEMES_TABLE}")
-        print(f"   {CATEGORIES_TABLE}")
+        print(f"   {self.schemes_path}")
+        print(f"   {self.categories_path}")
 
 
 # ============================================================================
@@ -336,7 +324,7 @@ class SchemeSahayak:
       C_eligibility_check — extract user profile → RAG → LLM eligibility verdict
 
     Startup (every session after ingestion):
-        bot = SchemeSahayak.from_delta()
+        bot = SchemeSahayak.from_parquet()
         result = bot.handle_query("I am a farmer, what subsidies can I get?")
         SchemeSahayak.pretty_print(result)
     """
@@ -363,22 +351,20 @@ class SchemeSahayak:
     # ------------------------------------------------------------------
 
     @classmethod
-    @classmethod
-    def from_delta(
+    def from_parquet(
         cls,
-        spark_session: Any | None = None,
+        data_dir: str = "data",
         embed_model: str = DEFAULT_EMBED_MODEL,
         groq_client: Any | None = None,
     ) -> "SchemeSahayak":
-        if spark_session is None:
-            from pyspark.sql import SparkSession
-            spark_session = SparkSession.builder.getOrCreate()
+        schemes_path = os.path.join(data_dir, "gov_schemes.parquet")
+        categories_path = os.path.join(data_dir, "gov_schemes_categories.parquet")
 
-        print(f"📖 Loading {SCHEMES_TABLE}…")
-        df_schemes = spark_session.table(SCHEMES_TABLE).toPandas()
+        print(f"📖 Loading {schemes_path}…")
+        df_schemes = pd.read_parquet(schemes_path)
 
-        print(f"📖 Loading {CATEGORIES_TABLE}…")
-        df_categories = spark_session.table(CATEGORIES_TABLE).toPandas()
+        print(f"📖 Loading {categories_path}…")
+        df_categories = pd.read_parquet(categories_path)
 
         # --------------------------------------------------------
         # Load pre‑computed embeddings if available

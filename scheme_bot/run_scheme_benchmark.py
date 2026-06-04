@@ -56,32 +56,57 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from groq import Groq
 
-SCHEMES_TABLE    = "workspace.default.gov_schemes"
-CATEGORIES_TABLE = "workspace.default.gov_schemes_categories"
+# Load tables
+import os
+if 'spark' in globals() or 'spark' in locals():
+    print("📖 Loading schemes from Spark table…")
+    df_schemes = spark.table(SCHEMES_TABLE).toPandas()
+    print("📖 Loading categories from Spark table…")
+    df_categories = spark.table(CATEGORIES_TABLE).toPandas()
+else:
+    data_dir = "data"
+    schemes_path = os.path.join(data_dir, "gov_schemes.parquet")
+    categories_path = os.path.join(data_dir, "gov_schemes_categories.parquet")
+    print(f"📖 Loading local schemes from {schemes_path}…")
+    df_schemes = pd.read_parquet(schemes_path)
+    print(f"📖 Loading local categories from {categories_path}…")
+    df_categories = pd.read_parquet(categories_path)
 
-print("📖 Loading schemes…")
-df_schemes = spark.table(SCHEMES_TABLE).toPandas()
 df_schemes = df_schemes[df_schemes["embed_text"].str.len() >= 50].reset_index(drop=True)
-
-print("📖 Loading categories…")
-df_categories = spark.table(CATEGORIES_TABLE).toPandas()
 print(f"✅ {len(df_schemes)} schemes, {len(df_categories)} categories loaded.\n")
 
-# ----- TF‑IDF (instant, no downloads) -----
-vectorizer = TfidfVectorizer(stop_words="english", max_features=5000)
-tfidf_matrix = vectorizer.fit_transform(df_schemes["embed_text"].tolist())
+# ----- FAISS Search setup -----
+from sentence_transformers import SentenceTransformer
+import faiss
+
+print("🔧 Building FAISS index on embed_text...")
+vectorizer = SentenceTransformer("BAAI/bge-small-en-v1.5")
+print(f"⏳ Embedding {len(df_schemes)} schemes…")
+scheme_texts = df_schemes["embed_text"].tolist()
+scheme_embs  = vectorizer.encode(
+    scheme_texts,
+    batch_size=64,
+    show_progress_bar=False,
+    normalize_embeddings=True,
+    convert_to_numpy=True,
+).astype(np.float32)
+dim = scheme_embs.shape[1]
+tfidf_matrix = faiss.IndexFlatIP(dim)
+tfidf_matrix.add(scheme_embs)
+print(f"   FAISS index ready. Dimension: {dim}")
 
 def tfidf_search(query: str, k: int = 15) -> list[dict]:
     """Return top‑k schemes by cosine similarity."""
-    query_vec = vectorizer.transform([query])
-    scores = cosine_similarity(query_vec, tfidf_matrix).flatten()
-    top_idx = np.argpartition(scores, -k)[-k:]
-    top_idx = top_idx[np.argsort(scores[top_idx])[::-1]]
+    q_emb = vectorizer.encode(
+        [query.strip()], normalize_embeddings=True, convert_to_numpy=True
+    ).astype(np.float32)
+    scores, indices = tfidf_matrix.search(q_emb, k)
     results = []
-    for idx in top_idx:
-        row = df_schemes.iloc[idx].to_dict()
-        row["score"] = float(scores[idx])
-        results.append(row)
+    for score, idx in zip(scores[0], indices[0]):
+        if idx >= 0:
+            row = df_schemes.iloc[int(idx)].to_dict()
+            row["score"] = float(score)
+            results.append(row)
     return results
 
 # ----- Prompts (same as scheme_sahayak_v3) -----
@@ -197,18 +222,10 @@ class QuickSchemeBot:
             filtered = self.df_schemes[self.df_schemes["category"].isin(matched_cats)]
             if len(filtered) < 3:
                 filtered = self.df_schemes
-            indices = filtered.index.tolist()
-            sub_matrix = tfidf_matrix[indices]
-            query_vec = vectorizer.transform([query])
-            scores = cosine_similarity(query_vec, sub_matrix).flatten()
-            top_k = min(5, len(indices))
-            top_local = np.argpartition(scores, -top_k)[-top_k:]
-            top_local = top_local[np.argsort(scores[top_local])[::-1]]
-            results = []
-            for i in top_local:
-                row = self.df_schemes.iloc[indices[i]].to_dict()
-                row["score"] = float(scores[i])
-                results.append(row)
+            # FAISS search on all schemes
+            all_hits = tfidf_search(query, k=30)
+            cat_hits = [h for h in all_hits if h.get("category") in matched_cats]
+            results = cat_hits[:5] if len(cat_hits) >= 3 else all_hits[:5]
             return {"mode": "B_category_search", "router": router,
                     "result": {"query": query, "categories_searched": matched_cats,
                                "schemes": results}}
@@ -662,10 +679,18 @@ summary_df = pd.DataFrame(summary)
 summary_df["run_id"] = RUN_ID
 display(summary_df)
 
-# Optionally write to Delta
+# Optionally write to Delta or local CSV
 try:
-    spark.createDataFrame(summary_df).write.mode("append").saveAsTable("workspace.default.benchmark_summary_scheme")
-    print("Saved to workspace.default.benchmark_summary_scheme")
+    if 'spark' in globals() or 'spark' in locals():
+        spark.createDataFrame(summary_df).write.mode("append").saveAsTable("workspace.default.benchmark_summary_scheme")
+        print("Saved to workspace.default.benchmark_summary_scheme")
+    else:
+        summary_path = "data/benchmark_summary_scheme.csv"
+        if os.path.exists(summary_path):
+            summary_df.to_csv(summary_path, mode='a', header=False, index=False)
+        else:
+            summary_df.to_csv(summary_path, index=False)
+        print(f"Saved to local file {summary_path}")
 except Exception as e:
     print(f"Delta save failed (non‑fatal): {e}")
 

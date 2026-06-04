@@ -62,7 +62,6 @@ nyaya-sahayak/
 - Python 3.11+
 - A Groq API key (free tier works): https://console.groq.com
 - (Optional) Sarvam AI key for multilingual: https://sarvam.ai
-- (Optional) Databricks workspace for full Delta/VS features
 
 ### 1. Clone and install
 
@@ -72,7 +71,7 @@ cd legal-bot
 pip install -r requirements.txt
 ```
 
-`requirements.txt` includes: `groq sentence-transformers faiss-cpu chromadb numpy databricks-vectorsearch`
+`requirements.txt` includes: `groq sentence-transformers faiss-cpu chromadb numpy`
 
 Additional installs for full features:
 ```bash
@@ -150,20 +149,22 @@ result = comp.handle_query("murder")
 result = comp.handle_query("someone hacked my account and transferred money")
 ```
 
-### 6. Build the Scheme data layer (Databricks, run once)
+### 6. Build the Scheme data layer (Local, run once)
+
+Place your `gov_myscheme.csv` inside the `data/` folder, then run:
 
 ```python
-from scheme_bot.scheme_sahayak_v3 import SchemeIngester
+from scheme_bot.scheme_sahayak import SchemeIngester
 
-ingester = SchemeIngester(spark_session=spark)
-ingester.run_pipeline()   # writes gov_schemes + gov_schemes_categories to Delta
+ingester = SchemeIngester(data_dir="data")
+ingester.run_pipeline()   # writes gov_schemes.parquet + gov_schemes_categories.parquet locally
 ```
 
 Load the agent in any session:
 ```python
-from scheme_bot.scheme_sahayak_v3 import SchemeSahayak
+from scheme_bot.scheme_sahayak import SchemeSahayak
 
-bot = SchemeSahayak.from_delta()   # reads from Delta, builds FAISS ~1 min
+bot = SchemeSahayak.from_parquet(data_dir="data")   # reads local Parquet, builds FAISS
 result = bot.handle_query("I am a poor farmer, what schemes exist for me?")
 SchemeSahayak.pretty_print(result)
 ```
